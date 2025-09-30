@@ -32,5 +32,11 @@ export default defineConfig({
             "@firecms/collection_editor": path.resolve(__dirname, "../../packages/collection_editor/src"),
             "@firecms/user_management": path.resolve(__dirname, "../../packages/user_management/src")
         }
+    },
+    server: {
+        allowedHosts: [
+            "unreprobated-charli-roomiest.ngrok-free.dev",
+            "locator-adelaide-dow-alberta.trycloudflare.com"
+        ]
     }
 })

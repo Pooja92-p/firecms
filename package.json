@@ -57,7 +57,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
-    "@types/eslint__js": "^9.14.0",
+    "@types/react": "^19.1.15",
+    "@types/react-dom": "^19.1.9",
     "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@typescript-eslint/parser": "^8.44.0",
     "eslint": "^9.35.0",
@@ -70,5 +71,11 @@
     "lerna": "^8.2.4",
     "npm-run-all": "^4.1.5",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@firecms/collection_editor": "^3.0.0-rc.1",
+    "@firecms/collection_editor_firebase": "^3.0.0-rc.1",
+    "@mui/icons-material": "^7.3.2",
+    "@mui/material": "^7.3.2"
   }
 }

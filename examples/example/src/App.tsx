@@ -19,6 +19,7 @@ import {
     useBuildNavigationController,
     useValidateAuthenticator
 } from "@firecms/core";
+
 import {
     FirebaseAuthController,
     FirebaseLoginView,
@@ -27,32 +28,40 @@ import {
     useFirebaseAuthController,
     useFirebaseStorageSource,
     useFirestoreDelegate,
-    useInitialiseFirebase,
+    useInitialiseFirebase
 } from "@firecms/firebase";
+
+import {
+    buildCollectionInference,
+    useFirestoreCollectionsConfigController
+} from "@firecms/collection_editor_firebase";
+
+import {
+    mergeCollections,
+    useCollectionEditorPlugin
+} from "@firecms/collection_editor";
+
+import {
+    useBuildUserManagement,
+    useUserManagementPlugin,
+    userManagementAdminViews
+} from "@firecms/user_management";
+
 import { CenteredView } from "@firecms/ui";
 import { demoCollection } from "./collections/demo";
-
-export const firebaseConfig = {
-    apiKey: "AIzaSyBzt-JvcXvpDrdNU7jYX3fC3v0EAHjTKEw",
-    authDomain: "demo.firecms.co",
-    databaseURL: "https://firecms-demo-27150.firebaseio.com",
-    projectId: "firecms-demo-27150",
-    storageBucket: "firecms-demo-27150.appspot.com",
-    messagingSenderId: "837544933711",
-    appId: "1:837544933711:web:75822ffc0840e3ae01ad3a",
-    measurementId: "G-8HRE8MVXZJ"
-};
+import { firebaseConfig } from "./firebase_config";
 
 function App() {
 
-    // Use your own authentication logic here
+    /**
+     * 🔹 Custom authenticator to control access
+     */
     const myAuthenticator: Authenticator<FirebaseUserWrapper> = useCallback(async ({
-                                                                                       user,
-                                                                                       authController
-                                                                                   }) => {
+        user,
+        authController
+    }) => {
 
         if (user?.email?.includes("flanders")) {
-            // You can throw an error to prevent access
             throw Error("Stupid Flanders!");
         }
 
@@ -61,14 +70,13 @@ function App() {
 
         console.log("Allowing access to", user);
 
-        // we allow access to every user in this case
+        // For now, allow everyone
         return true;
     }, []);
 
-    const collections = useMemo(() => [
-        demoCollection
-    ], []);
-
+    /**
+     * 🔹 Initialize Firebase
+     */
     const {
         firebaseApp,
         firebaseConfigLoading,
@@ -77,30 +85,40 @@ function App() {
         firebaseConfig
     });
 
-    // Controller used to manage the dark or light color mode
     const modeController = useBuildModeController();
 
     const signInOptions: FirebaseSignInProvider[] = ["google.com", "password"];
 
-    // Controller for managing authentication
+    /**
+     * 🔹 Authentication controller
+     */
     const authController: FirebaseAuthController = useFirebaseAuthController({
         firebaseApp,
         signInOptions
     });
 
-    // Controller for saving some user preferences locally.
+    /**
+     * 🔹 Local persistence for user preferences
+     */
     const userConfigPersistence = useBuildLocalConfigurationPersistence();
 
-    // Delegate used for fetching and saving data in Firestore
+    /**
+     * 🔹 Firestore data delegate
+     */
     const firestoreDelegate = useFirestoreDelegate({
         firebaseApp
     });
 
-    // Controller used for saving and fetching files in storage
+    /**
+     * 🔹 Firebase storage
+     */
     const storageSource = useFirebaseStorageSource({
         firebaseApp
     });
 
+    /**
+     * 🔹 Validate authentication
+     */
     const {
         authLoading,
         canAccessMainView,
@@ -112,62 +130,104 @@ function App() {
         storageSource
     });
 
-    const navigationController = useBuildNavigationController({
-        collections,
-        authController,
-        dataSourceDelegate: firestoreDelegate
+    /**
+     * 🔹 Firestore collection editor controller
+     */
+    const collectionConfigController = useFirestoreCollectionsConfigController({ firebaseApp });
+
+    const collectionEditorPlugin = useCollectionEditorPlugin({
+        collectionConfigController,
+        collectionInference: buildCollectionInference(firebaseApp)
     });
 
+    /**
+     * 🔹 User management setup
+     */
+    const userManagement = useBuildUserManagement({
+        dataSourceDelegate: firestoreDelegate,
+        authController
+    });
+
+    const userManagementPlugin = useUserManagementPlugin({ userManagement });
+
+    /**
+     * 🔹 Combine demo collections + dynamic collections
+     */
+    const collectionsBuilder = useCallback(() => {
+        return collectionConfigController.collections ?? [];
+    }, [collectionConfigController.collections]);
+
+    /**
+     * 🔹 Navigation Controller with Admin Views
+     */
+    const navigationController = useBuildNavigationController({
+        disabled: authLoading,
+        collections: collectionsBuilder,
+        views: [],
+        adminViews: userManagementAdminViews, // ✅ Adds Admin section to sidebar
+        authController,
+        dataSourceDelegate: firestoreDelegate,
+        plugins: [collectionEditorPlugin, userManagementPlugin]
+    });
+
+    /**
+     * 🔹 Loading / Error handling
+     */
     if (firebaseConfigLoading || !firebaseApp) {
-        return <>
-            <CircularProgressCenter/>
-        </>;
+        return <CircularProgressCenter />;
     }
 
     if (configError) {
         return <CenteredView>{configError}</CenteredView>;
     }
 
+    /**
+     * 🔹 Main App Rendering
+     */
     return (
         <SnackbarProvider>
             <ModeControllerProvider value={modeController}>
                 <FireCMS
                     navigationController={navigationController}
-                    authController={authController}
+                    authController={userManagement}  // use userManagement here
                     userConfigPersistence={userConfigPersistence}
                     dataSourceDelegate={firestoreDelegate}
                     storageSource={storageSource}
+                    plugins={[collectionEditorPlugin, userManagementPlugin]}
                 >
                     {({
-                          context,
-                          loading
-                      }) => {
+                        context,
+                        loading
+                    }) => {
 
                         if (loading || authLoading) {
-                            return <CircularProgressCenter size={"large"}/>;
+                            return <CircularProgressCenter size={"large"} />;
                         }
 
                         if (!canAccessMainView) {
-                            return <FirebaseLoginView authController={authController}
-                                                      firebaseApp={firebaseApp}
-                                                      signInOptions={signInOptions}
-                                                      notAllowedError={notAllowedError}/>;
+                            return (
+                                <FirebaseLoginView
+                                    authController={authController}
+                                    firebaseApp={firebaseApp}
+                                    signInOptions={signInOptions}
+                                    notAllowedError={notAllowedError}
+                                />
+                            );
                         }
 
-                        return <Scaffold
-                            autoOpenDrawer={false}>
-                            <AppBar
-                                title={"My demo app"}/>
-                            <Drawer/>
-                            <NavigationRoutes/>
-                            <SideDialogs/>
-                        </Scaffold>;
+                        return (
+                            <Scaffold autoOpenDrawer={false}>
+                                <AppBar title={"My demo app"} />
+                                <Drawer />
+                                <NavigationRoutes />
+                                <SideDialogs />
+                            </Scaffold>
+                        );
                     }}
                 </FireCMS>
             </ModeControllerProvider>
         </SnackbarProvider>
     );
-
 }
 
 export default App;

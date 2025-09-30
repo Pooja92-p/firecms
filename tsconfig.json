@@ -26,8 +26,7 @@
     "isolatedModules": true,
     "types": [
       "vite/client",
-      "node",
-      "jest"
+      "node"
     ]
   }
 }

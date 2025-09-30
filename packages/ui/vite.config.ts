@@ -41,7 +41,7 @@ export default defineConfig(() => ({
         viteStaticCopy({
             targets: [
                 {
-                    src: path.resolve(__dirname, "src/index.css"),
+                    src: "src/index.css",
                     dest: ""
                 }
             ]

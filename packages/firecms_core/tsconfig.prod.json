@@ -2,12 +2,18 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "sourceMap": true,
-    "paths": {}
+    "paths": {},
+    "outDir": "dist",
+    "composite": true,
+    "declaration": true,
+    "declarationDir": "dist"
   },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
   "exclude": [
     "node_modules",
-    "dist",
-    "../ui/src",
-    "../formex/src",
+    "dist"
   ],
 }
